@@ -1,12 +1,16 @@
 using Dapper;
 using MapleRemit.Api.Models;
 using MapleRemit.Api.Services;
+using Microsoft.Extensions.Logging.Abstractions;
 using Npgsql;
 
 namespace MapleRemit.Api.Storage;
 
-public sealed class PostgresStore(NpgsqlDataSource dataSource) : IQuoteStore, ITransferStore, IStoreHealth
+public sealed class PostgresStore(NpgsqlDataSource dataSource, ILogger<PostgresStore>? logger = null)
+    : IQuoteStore, ITransferStore, IStoreHealth
 {
+    private readonly ILogger _logger = logger ?? NullLogger<PostgresStore>.Instance;
+
     static PostgresStore() => DefaultTypeMap.MatchNamesWithUnderscores = true;
 
     // Separate lock namespaces for schema and customers.
@@ -158,8 +162,10 @@ public sealed class PostgresStore(NpgsqlDataSource dataSource) : IQuoteStore, IT
             connection.ExecuteScalar<int>("SELECT 1");
             return true;
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            // Warning, not Error: /health may be polled often during an outage.
+            _logger.LogWarning(ex, "Database health check failed");
             return false;
         }
     }

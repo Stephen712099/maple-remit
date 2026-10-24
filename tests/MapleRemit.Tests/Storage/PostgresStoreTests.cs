@@ -2,6 +2,7 @@ using Dapper;
 using MapleRemit.Api.Models;
 using MapleRemit.Api.Services;
 using MapleRemit.Api.Storage;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Time.Testing;
 using Npgsql;
@@ -140,5 +141,19 @@ public class PostgresStoreTests : StoreContractTests, IClassFixture<PostgresFixt
         using var unreachable = NpgsqlDataSource.Create("Host=localhost;Port=1;Timeout=1");
 
         Assert.False(new PostgresStore(unreachable).IsReady());
+    }
+
+    [Fact]
+    public void Unreachable_database_is_logged_as_a_warning_with_the_cause()
+    {
+        var logs = new CapturingLoggerProvider();
+        var logger = new Logger<PostgresStore>(new LoggerFactory([logs]));
+        using var unreachable = NpgsqlDataSource.Create("Host=localhost;Port=1;Timeout=1");
+
+        new PostgresStore(unreachable, logger).IsReady();
+
+        var entry = Assert.Single(logs.Entries);
+        Assert.Equal(LogLevel.Warning, entry.Level);
+        Assert.NotNull(entry.Exception);
     }
 }
