@@ -16,17 +16,18 @@ public sealed class QuoteService(IQuoteStore store, TimeProvider clock, IOptions
             throw new ApiException(ErrorCodes.InvalidAmount, string.Create(CultureInfo.InvariantCulture,
                 $"amountCad must be between {Pricing.MinAmountCad} and {Pricing.MaxAmountCad} with at most 2 decimal places."));
 
+        var amount = Pricing.RoundMoney(amountCad);
         var thbPerCad = rate.Value.ThbPerCad;
-        var fee = Pricing.Fee(amountCad);
+        var fee = Pricing.Fee(amount);
         var now = clock.GetUtcNowMicroseconds();
 
         var quote = new Quote(
             Guid.NewGuid(),
-            amountCad,
+            amount,
             fee,
-            amountCad + fee,
+            amount + fee,
             thbPerCad,
-            Pricing.AmountThb(amountCad, thbPerCad),
+            Pricing.AmountThb(amount, thbPerCad),
             now,
             now + QuoteLifetime);
 

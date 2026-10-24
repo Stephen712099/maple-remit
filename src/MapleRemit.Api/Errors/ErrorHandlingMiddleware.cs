@@ -21,11 +21,16 @@ public sealed class ErrorHandlingMiddleware(RequestDelegate next, ILogger<ErrorH
         {
             await Write(context, ex.StatusCode, new ErrorResponse(ex.Code, ex.Message));
         }
+        catch (BadHttpRequestException ex) when (!context.Response.HasStarted)
+        {
+            // Usually 400; 413/415 for big bodies or missing content type.
+            await Write(context, ex.StatusCode, StatusCodeErrors.For(ex.StatusCode));
+        }
         catch (Exception ex) when (!context.Response.HasStarted)
         {
             logger.LogError(ex, "Unhandled exception");
             await Write(context, StatusCodes.Status500InternalServerError,
-                new ErrorResponse(ErrorCodes.InternalError, "An unexpected error occurred."));
+                StatusCodeErrors.For(StatusCodes.Status500InternalServerError));
         }
     }
 

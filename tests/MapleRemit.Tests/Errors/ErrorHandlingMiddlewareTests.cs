@@ -49,6 +49,16 @@ public class ErrorHandlingMiddlewareTests
     }
 
     [Fact]
+    public async Task BadHttpRequestException_returns_400_invalid_request_without_error_log()
+    {
+        var (status, body) = await Invoke(new BadHttpRequestException("Bad request."));
+
+        Assert.Equal(400, status);
+        Assert.Equal("INVALID_REQUEST", body.GetProperty("code").GetString());
+        Assert.Empty(_logs.Errors);
+    }
+
+    [Fact]
     public async Task Unexpected_exception_returns_500_without_details_and_is_logged_once()
     {
         var thrown = new InvalidOperationException("db password is hunter2");
