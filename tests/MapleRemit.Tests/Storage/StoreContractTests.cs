@@ -165,4 +165,70 @@ public abstract class StoreContractTests
 
         Assert.Equal("cust-2", result.Transfer.CustomerId);
     }
+
+    [Fact]
+    public void Concurrent_requests_for_the_same_quote_create_one_transfer()
+    {
+        // Many rounds: the race window is short, so one round rarely hits it.
+        for (var round = 0; round < ConcurrencyRounds; round++)
+        {
+            var quote = AddQuote(100m, Now);
+
+            var outcomes = RunConcurrently(50, i => Transfers.CreateTransfer($"cust-{i}", quote.Id, NewKey(), Now));
+
+            Assert.Single(outcomes, o => o.Result is not null);
+            Assert.All(outcomes.Where(o => o.Error is not null),
+                o => Assert.Equal(ErrorCodes.QuoteAlreadyUsed, Assert.IsType<ApiException>(o.Error).Code));
+        }
+    }
+
+    [Fact]
+    public void Concurrent_requests_cannot_exceed_the_daily_limit()
+    {
+        Transfers.CreateTransfer("cust-1", AddQuote(2000m, Now).Id, NewKey(), Now);
+        var quotes = Enumerable.Range(0, 10).Select(_ => AddQuote(900m, Now)).ToArray();
+
+        var outcomes = RunConcurrently(10, i => Transfers.CreateTransfer("cust-1", quotes[i].Id, NewKey(), Now));
+
+        Assert.Single(outcomes, o => o.Result is not null);
+        Assert.All(outcomes.Where(o => o.Error is not null),
+            o => Assert.Equal(ErrorCodes.DailyLimitExceeded, Assert.IsType<ApiException>(o.Error).Code));
+    }
+
+    [Fact]
+    public void Concurrent_requests_with_the_same_key_return_one_transfer()
+    {
+        for (var round = 0; round < ConcurrencyRounds; round++)
+        {
+            var quote = AddQuote(100m, Now);
+            var key = NewKey();
+
+            var outcomes = RunConcurrently(20, _ => Transfers.CreateTransfer("cust-1", quote.Id, key, Now));
+
+            Assert.All(outcomes, o => Assert.Null(o.Error));
+            Assert.Single(outcomes.Select(o => o.Result!.Transfer.Id).Distinct());
+            Assert.Single(outcomes, o => !o.Result!.Replayed);
+        }
+    }
+
+    private const int ConcurrencyRounds = 20;
+
+    private sealed record Outcome(TransferResult? Result, Exception? Error);
+
+    // Barrier: start all threads together.
+    private static Outcome[] RunConcurrently(int count, Func<int, TransferResult> create)
+    {
+        var outcomes = new Outcome[count];
+        using var start = new Barrier(count);
+        var threads = Enumerable.Range(0, count).Select(i => new Thread(() =>
+        {
+            start.SignalAndWait();
+            try { outcomes[i] = new Outcome(create(i), null); }
+            catch (Exception ex) { outcomes[i] = new Outcome(null, ex); }
+        })).ToList();
+
+        threads.ForEach(t => t.Start());
+        threads.ForEach(t => t.Join());
+        return outcomes;
+    }
 }
