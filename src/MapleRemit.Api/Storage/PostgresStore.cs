@@ -133,17 +133,20 @@ public sealed class PostgresStore(NpgsqlDataSource dataSource) : IQuoteStore, IT
     public TransferPage ListTransfers(string customerId, int skip, int take)
     {
         using var connection = dataSource.OpenConnection();
+        // One snapshot, so totalCount matches items.
+        using var transaction = connection.BeginTransaction(System.Data.IsolationLevel.RepeatableRead);
         var items = connection.Query<TransferRow>(
                 $"""
                 SELECT {TransferColumns} FROM transfers WHERE customer_id = @customerId
                 ORDER BY created_at DESC, seq DESC
                 LIMIT @take OFFSET @skip
                 """,
-                new { customerId, skip, take })
+                new { customerId, skip, take }, transaction)
             .Select(row => row.ToModel())
             .ToList();
         var total = connection.ExecuteScalar<int>(
-            "SELECT COUNT(*) FROM transfers WHERE customer_id = @customerId", new { customerId });
+            "SELECT COUNT(*) FROM transfers WHERE customer_id = @customerId", new { customerId }, transaction);
+        transaction.Commit();
         return new TransferPage(items, total);
     }
 
