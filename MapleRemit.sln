@@ -1,0 +1,36 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{A84417A6-664B-4567-9A5D-F24F0528727C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MapleRemit.Api", "src\MapleRemit.Api\MapleRemit.Api.csproj", "{2845671D-4C0A-4101-B4CB-C700612885F5}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{E1A41F63-416F-4BDB-BD80-CF8DA47E1287}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MapleRemit.Tests", "tests\MapleRemit.Tests\MapleRemit.Tests.csproj", "{A58BF993-BC21-479D-BA81-62A4CD7F61B5}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{2845671D-4C0A-4101-B4CB-C700612885F5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2845671D-4C0A-4101-B4CB-C700612885F5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2845671D-4C0A-4101-B4CB-C700612885F5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2845671D-4C0A-4101-B4CB-C700612885F5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A58BF993-BC21-479D-BA81-62A4CD7F61B5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A58BF993-BC21-479D-BA81-62A4CD7F61B5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A58BF993-BC21-479D-BA81-62A4CD7F61B5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A58BF993-BC21-479D-BA81-62A4CD7F61B5}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{2845671D-4C0A-4101-B4CB-C700612885F5} = {A84417A6-664B-4567-9A5D-F24F0528727C}
+		{A58BF993-BC21-479D-BA81-62A4CD7F61B5} = {E1A41F63-416F-4BDB-BD80-CF8DA47E1287}
+	EndGlobalSection
+EndGlobal

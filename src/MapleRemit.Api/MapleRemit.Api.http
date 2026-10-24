@@ -1,0 +1,5 @@
+# Manual requests for the VS Code REST Client or the Rider/VS HTTP client.
+@host = http://localhost:4366
+
+### Health
+GET {{host}}/health
