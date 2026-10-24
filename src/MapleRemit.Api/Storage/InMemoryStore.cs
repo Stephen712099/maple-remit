@@ -1,12 +1,16 @@
 using MapleRemit.Api.Models;
+using MapleRemit.Api.Services;
 
 namespace MapleRemit.Api.Storage;
 
-public sealed class InMemoryStore : IQuoteStore
+public sealed class InMemoryStore : IQuoteStore, ITransferStore
 {
     // One lock guards all collections in this store.
     private readonly object _lock = new();
     private readonly Dictionary<Guid, Quote> _quotes = new();
+    private readonly HashSet<Guid> _usedQuoteIds = new();
+    private readonly Dictionary<string, List<Transfer>> _transfersByCustomer = new();
+    private readonly Dictionary<(string CustomerId, string Key), Transfer> _transfersByIdempotencyKey = new();
 
     public void AddQuote(Quote quote)
     {
@@ -21,6 +25,57 @@ public sealed class InMemoryStore : IQuoteStore
         lock (_lock)
         {
             return _quotes.GetValueOrDefault(id);
+        }
+    }
+
+    public TransferResult CreateTransfer(string customerId, Guid quoteId, string idempotencyKey, DateTimeOffset now)
+    {
+        lock (_lock)
+        {
+            // Key first: replays work after the quote expires.
+            if (_transfersByIdempotencyKey.TryGetValue((customerId, idempotencyKey), out var existing))
+            {
+                if (existing.QuoteId != quoteId)
+                    throw StoreErrors.IdempotencyKeyReused();
+
+                return new TransferResult(existing, Replayed: true);
+            }
+
+            var quote = _quotes.GetValueOrDefault(quoteId)
+                ?? throw StoreErrors.QuoteNotFound();
+
+            var history = _transfersByCustomer.GetValueOrDefault(customerId) ?? [];
+            var sentInWindowCad = history
+                .Where(t => TransferRules.IsInDailyWindow(t.CreatedAt, now))
+                .Sum(t => t.AmountCad);
+
+            TransferRules.EnsureAllowed(quote, _usedQuoteIds.Contains(quoteId), sentInWindowCad, now);
+
+            var transfer = new Transfer(Guid.NewGuid(), customerId, quote.Id, quote.AmountCad, quote.FeeCad,
+                quote.TotalCad, quote.ExchangeRate, quote.AmountThb, now);
+
+            if (!_transfersByCustomer.TryGetValue(customerId, out var transfers))
+                _transfersByCustomer[customerId] = transfers = [];
+            transfers.Add(transfer);
+            _usedQuoteIds.Add(quoteId);
+            _transfersByIdempotencyKey[(customerId, idempotencyKey)] = transfer;
+
+            return new TransferResult(transfer, Replayed: false);
+        }
+    }
+
+    public TransferPage ListTransfers(string customerId, int skip, int take)
+    {
+        lock (_lock)
+        {
+            var transfers = _transfersByCustomer.GetValueOrDefault(customerId) ?? [];
+            // Reverse + stable sort: newer first on equal timestamps.
+            var items = transfers.AsEnumerable().Reverse()
+                .OrderByDescending(t => t.CreatedAt)
+                .Skip(skip)
+                .Take(take)
+                .ToList();
+            return new TransferPage(items, transfers.Count);
         }
     }
 }

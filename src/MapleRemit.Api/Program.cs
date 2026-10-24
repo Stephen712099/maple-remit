@@ -17,9 +17,9 @@ builder.Services.AddOptions<ExchangeRateOptions>()
     .Validate(o => o.ThbPerCad > 0, "ExchangeRate:ThbPerCad must be greater than zero.")
     .ValidateOnStart();
 
-builder.Services.AddSingleton<InMemoryStore>();
-builder.Services.AddSingleton<IQuoteStore>(sp => sp.GetRequiredService<InMemoryStore>());
+AddStore<InMemoryStore>(builder.Services);
 builder.Services.AddSingleton<QuoteService>();
+builder.Services.AddSingleton<TransferService>();
 
 var app = builder.Build();
 
@@ -28,8 +28,18 @@ app.UseStatusCodePages(StatusCodeErrors.WriteAsync);
 
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 app.MapQuoteEndpoints();
+app.MapTransferEndpoints();
 
 app.Run();
+
+// One instance for all interfaces: shared data and locks.
+static void AddStore<TStore>(IServiceCollection services)
+    where TStore : class, IQuoteStore, ITransferStore
+{
+    services.AddSingleton<TStore>();
+    services.AddSingleton<IQuoteStore>(sp => sp.GetRequiredService<TStore>());
+    services.AddSingleton<ITransferStore>(sp => sp.GetRequiredService<TStore>());
+}
 
 // Lets WebApplicationFactory reference the entry point.
 public partial class Program;
