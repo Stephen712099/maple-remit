@@ -13,6 +13,8 @@ public sealed class PostgresFixture : IAsyncLifetime
 
     public NpgsqlDataSource DataSource { get; private set; } = null!;
 
+    public string ConnectionString => _container.GetConnectionString();
+
     public async Task InitializeAsync()
     {
         await _container.StartAsync();
@@ -92,5 +94,18 @@ public class PostgresStoreTests : StoreContractTests, IClassFixture<PostgresFixt
         var ex = Assert.Throws<PostgresException>(() => InsertTransfer(AddQuote(), "cust-1", "key-1"));
 
         Assert.Equal(PostgresErrorCodes.UniqueViolation, ex.SqlState);
+    }
+
+    [Fact]
+    public async Task Schema_creation_is_safe_when_instances_start_together()
+    {
+        var database = $"schema_{Guid.NewGuid():N}";
+        using (var connection = _db.DataSource.OpenConnection())
+            connection.Execute($"CREATE DATABASE {database}");
+        var connectionString = new NpgsqlConnectionStringBuilder(_db.ConnectionString) { Database = database }.ToString();
+        await using var dataSource = NpgsqlDataSource.Create(connectionString);
+
+        // Throws if any instance fails.
+        await Task.WhenAll(Enumerable.Range(0, 8).Select(_ => Task.Run(() => new PostgresStore(dataSource).EnsureSchema())));
     }
 }

@@ -10,6 +10,7 @@ public sealed class PostgresStore(NpgsqlDataSource dataSource) : IQuoteStore, IT
     static PostgresStore() => DefaultTypeMap.MatchNamesWithUnderscores = true;
 
     // Separate lock namespaces for schema and customers.
+    private const int SchemaLock = 1;
     private const int CustomerLock = 2;
 
     private const string QuoteColumns =
@@ -50,7 +51,11 @@ public sealed class PostgresStore(NpgsqlDataSource dataSource) : IQuoteStore, IT
     public void EnsureSchema()
     {
         using var connection = dataSource.OpenConnection();
-        connection.Execute(Schema);
+        using var transaction = connection.BeginTransaction();
+        // Instances starting together wait instead of racing.
+        connection.Execute("SELECT pg_advisory_xact_lock(@SchemaLock, 0)", new { SchemaLock }, transaction);
+        connection.Execute(Schema, transaction: transaction);
+        transaction.Commit();
     }
 
     public void AddQuote(Quote quote)
