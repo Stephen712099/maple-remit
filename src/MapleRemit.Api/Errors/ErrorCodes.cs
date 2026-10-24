@@ -4,6 +4,11 @@ public static class ErrorCodes
 {
     public const string InvalidRequest = "INVALID_REQUEST";
     public const string InvalidAmount = "INVALID_AMOUNT";
+    public const string InvalidCustomerId = "INVALID_CUSTOMER_ID";
+    public const string InvalidPage = "INVALID_PAGE";
+    public const string MissingIdempotencyKey = "MISSING_IDEMPOTENCY_KEY";
+    public const string InvalidIdempotencyKey = "INVALID_IDEMPOTENCY_KEY";
+    public const string InvalidQuoteId = "INVALID_QUOTE_ID";
     public const string QuoteNotFound = "QUOTE_NOT_FOUND";
     public const string QuoteExpired = "QUOTE_EXPIRED";
     public const string QuoteAlreadyUsed = "QUOTE_ALREADY_USED";
