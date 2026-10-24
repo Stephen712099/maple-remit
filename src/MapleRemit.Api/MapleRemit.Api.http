@@ -1,5 +1,17 @@
 # Manual requests for the VS Code REST Client or the Rider/VS HTTP client.
-@host = http://localhost:4366
+@host = http://localhost:5001
 
 ### Health
 GET {{host}}/health
+
+### Create a quote
+POST {{host}}/quotes
+Content-Type: application/json
+
+{ "amountCad": 231.00 }
+
+### Error: amount below the limit (400 INVALID_AMOUNT)
+POST {{host}}/quotes
+Content-Type: application/json
+
+{ "amountCad": 9.99 }
