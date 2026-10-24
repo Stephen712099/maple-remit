@@ -3,7 +3,7 @@ using MapleRemit.Api.Services;
 
 namespace MapleRemit.Api.Storage;
 
-public sealed class InMemoryStore : IQuoteStore, ITransferStore
+public sealed class InMemoryStore : IQuoteStore, ITransferStore, IStoreHealth
 {
     // One lock guards all collections in this store.
     private readonly object _lock = new();
@@ -63,6 +63,8 @@ public sealed class InMemoryStore : IQuoteStore, ITransferStore
             return new TransferResult(transfer, Replayed: false);
         }
     }
+
+    public bool IsReady() => true;
 
     public TransferPage ListTransfers(string customerId, int skip, int take)
     {

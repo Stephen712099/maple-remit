@@ -26,7 +26,9 @@ var app = builder.Build();
 app.UseMiddleware<ErrorHandlingMiddleware>();
 app.UseStatusCodePages(StatusCodeErrors.WriteAsync);
 
-app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
+app.MapGet("/health", (IStoreHealth store) => store.IsReady()
+    ? Results.Ok(new { status = "ok" })
+    : Results.Json(new { status = "unavailable" }, statusCode: StatusCodes.Status503ServiceUnavailable));
 app.MapQuoteEndpoints();
 app.MapTransferEndpoints();
 
@@ -34,11 +36,12 @@ app.Run();
 
 // One instance for all interfaces: shared data and locks.
 static void AddStore<TStore>(IServiceCollection services)
-    where TStore : class, IQuoteStore, ITransferStore
+    where TStore : class, IQuoteStore, ITransferStore, IStoreHealth
 {
     services.AddSingleton<TStore>();
     services.AddSingleton<IQuoteStore>(sp => sp.GetRequiredService<TStore>());
     services.AddSingleton<ITransferStore>(sp => sp.GetRequiredService<TStore>());
+    services.AddSingleton<IStoreHealth>(sp => sp.GetRequiredService<TStore>());
 }
 
 // Lets WebApplicationFactory reference the entry point.

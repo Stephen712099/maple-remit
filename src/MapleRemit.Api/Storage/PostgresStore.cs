@@ -5,7 +5,7 @@ using Npgsql;
 
 namespace MapleRemit.Api.Storage;
 
-public sealed class PostgresStore(NpgsqlDataSource dataSource) : IQuoteStore, ITransferStore
+public sealed class PostgresStore(NpgsqlDataSource dataSource) : IQuoteStore, ITransferStore, IStoreHealth
 {
     static PostgresStore() => DefaultTypeMap.MatchNamesWithUnderscores = true;
 
@@ -145,6 +145,20 @@ public sealed class PostgresStore(NpgsqlDataSource dataSource) : IQuoteStore, IT
         var total = connection.ExecuteScalar<int>(
             "SELECT COUNT(*) FROM transfers WHERE customer_id = @customerId", new { customerId });
         return new TransferPage(items, total);
+    }
+
+    public bool IsReady()
+    {
+        try
+        {
+            using var connection = dataSource.OpenConnection();
+            connection.ExecuteScalar<int>("SELECT 1");
+            return true;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
     }
 
     // timestamptz reads as UTC DateTime; convert to DateTimeOffset.

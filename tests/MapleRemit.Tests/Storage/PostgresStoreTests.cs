@@ -127,4 +127,18 @@ public class PostgresStoreTests : StoreContractTests, IClassFixture<PostgresFixt
         // Throws if any instance fails.
         await Task.WhenAll(Enumerable.Range(0, 8).Select(_ => Task.Run(() => new PostgresStore(dataSource).EnsureSchema())));
     }
+
+    [Fact]
+    public void Is_ready_when_the_database_is_reachable()
+    {
+        Assert.True(_store.IsReady());
+    }
+
+    [Fact]
+    public void Is_not_ready_when_the_database_is_unreachable()
+    {
+        using var unreachable = NpgsqlDataSource.Create("Host=localhost;Port=1;Timeout=1");
+
+        Assert.False(new PostgresStore(unreachable).IsReady());
+    }
 }
