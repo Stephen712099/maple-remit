@@ -19,12 +19,12 @@ public sealed class ErrorHandlingMiddleware(RequestDelegate next, ILogger<ErrorH
         // Catches apply only before the response starts.
         catch (ApiException ex) when (!context.Response.HasStarted)
         {
-            await Write(context, ex.StatusCode, new ErrorResponse(ex.Code, ex.Message));
+            await WriteClientError(context, ex.StatusCode, new ErrorResponse(ex.Code, ex.Message));
         }
         catch (BadHttpRequestException ex) when (!context.Response.HasStarted)
         {
             // Usually 400; 413/415 for big bodies or missing content type.
-            await Write(context, ex.StatusCode, StatusCodeErrors.For(ex.StatusCode));
+            await WriteClientError(context, ex.StatusCode, StatusCodeErrors.For(ex.StatusCode));
         }
         catch (Exception ex) when (!context.Response.HasStarted)
         {
@@ -32,6 +32,13 @@ public sealed class ErrorHandlingMiddleware(RequestDelegate next, ILogger<ErrorH
             await Write(context, StatusCodes.Status500InternalServerError,
                 StatusCodeErrors.For(StatusCodes.Status500InternalServerError));
         }
+    }
+
+    // Info, not error: client mistakes should not page anyone. Count them by ErrorCode.
+    private Task WriteClientError(HttpContext context, int status, ErrorResponse body)
+    {
+        logger.LogInformation("Client error {StatusCode} {ErrorCode}", status, body.Code);
+        return Write(context, status, body);
     }
 
     private static Task Write(HttpContext context, int status, ErrorResponse body)

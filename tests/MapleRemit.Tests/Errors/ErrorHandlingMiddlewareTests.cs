@@ -28,7 +28,7 @@ public class ErrorHandlingMiddlewareTests
     }
 
     [Fact]
-    public async Task ApiException_returns_400_with_its_code_and_message_without_error_log()
+    public async Task ApiException_returns_400_with_its_code_and_message_logged_as_info()
     {
         var (status, body) = await Invoke(new ApiException(ErrorCodes.InvalidAmount, "Bad amount."));
 
@@ -36,6 +36,7 @@ public class ErrorHandlingMiddlewareTests
         Assert.Equal("INVALID_AMOUNT", body.GetProperty("code").GetString());
         Assert.Equal("Bad amount.", body.GetProperty("message").GetString());
         Assert.Empty(_logs.Errors);
+        AssertClientErrorLogged(400, "INVALID_AMOUNT");
     }
 
     [Fact]
@@ -49,13 +50,23 @@ public class ErrorHandlingMiddlewareTests
     }
 
     [Fact]
-    public async Task BadHttpRequestException_returns_400_invalid_request_without_error_log()
+    public async Task BadHttpRequestException_returns_400_invalid_request_logged_as_info()
     {
         var (status, body) = await Invoke(new BadHttpRequestException("Bad request."));
 
         Assert.Equal(400, status);
         Assert.Equal("INVALID_REQUEST", body.GetProperty("code").GetString());
         Assert.Empty(_logs.Errors);
+        AssertClientErrorLogged(400, "INVALID_REQUEST");
+    }
+
+    // One info entry with status and code, no stack trace.
+    private void AssertClientErrorLogged(int status, string code)
+    {
+        var entry = Assert.Single(_logs.Infos);
+        Assert.Contains(status.ToString(), entry.Message);
+        Assert.Contains(code, entry.Message);
+        Assert.Null(entry.Exception);
     }
 
     [Fact]
