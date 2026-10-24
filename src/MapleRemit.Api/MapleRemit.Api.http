@@ -1,10 +1,14 @@
 # Manual requests for the VS Code REST Client or the Rider/VS HTTP client.
+# Run top to bottom. State is in memory: restart the app to rerun from a clean state.
 @host = http://localhost:5001
+@customerId = cust-1
+@key = 11111111-1111-1111-1111-111111111111
 
 ### Health
 GET {{host}}/health
 
 ### Create a quote
+# @name createQuote
 POST {{host}}/quotes
 Content-Type: application/json
 
@@ -15,3 +19,77 @@ POST {{host}}/quotes
 Content-Type: application/json
 
 { "amountCad": 9.99 }
+
+### Create a transfer (201)
+POST {{host}}/transfers
+Content-Type: application/json
+Idempotency-Key: {{key}}
+
+{ "quoteId": "{{createQuote.response.body.$.quoteId}}", "customerId": "{{customerId}}" }
+
+### Replay with the same key (200, same transferId)
+POST {{host}}/transfers
+Content-Type: application/json
+Idempotency-Key: {{key}}
+
+{ "quoteId": "{{createQuote.response.body.$.quoteId}}", "customerId": "{{customerId}}" }
+
+### List transfers, newest first
+GET {{host}}/transfers?customerId={{customerId}}&page=1
+
+### Error: missing Idempotency-Key (400 MISSING_IDEMPOTENCY_KEY)
+POST {{host}}/transfers
+Content-Type: application/json
+
+{ "quoteId": "{{createQuote.response.body.$.quoteId}}", "customerId": "{{customerId}}" }
+
+### Error: unknown quote (404 QUOTE_NOT_FOUND)
+POST {{host}}/transfers
+Content-Type: application/json
+Idempotency-Key: {{$guid}}
+
+{ "quoteId": "00000000-0000-0000-0000-000000000001", "customerId": "{{customerId}}" }
+
+### Error: used quote with a new key (409 QUOTE_ALREADY_USED)
+POST {{host}}/transfers
+Content-Type: application/json
+Idempotency-Key: {{$guid}}
+
+{ "quoteId": "{{createQuote.response.body.$.quoteId}}", "customerId": "{{customerId}}" }
+
+### Create a second quote
+# @name secondQuote
+POST {{host}}/quotes
+Content-Type: application/json
+
+{ "amountCad": 100.00 }
+
+### Error: same key, different quote (422 IDEMPOTENCY_KEY_REUSED)
+POST {{host}}/transfers
+Content-Type: application/json
+Idempotency-Key: {{key}}
+
+{ "quoteId": "{{secondQuote.response.body.$.quoteId}}", "customerId": "{{customerId}}" }
+
+### Create a 3000 CAD quote
+# @name bigQuote
+POST {{host}}/quotes
+Content-Type: application/json
+
+{ "amountCad": 3000.00 }
+
+### Error: over the daily limit, 231 already sent (422 DAILY_LIMIT_EXCEEDED)
+POST {{host}}/transfers
+Content-Type: application/json
+Idempotency-Key: {{$guid}}
+
+{ "quoteId": "{{bigQuote.response.body.$.quoteId}}", "customerId": "{{customerId}}" }
+
+# Expired quote (422 QUOTE_EXPIRED) needs a 15-minute wait, so it is not here.
+# The API test Expired_quote_returns_422 covers it with a fake clock.
+
+### Error: missing customerId (400 INVALID_CUSTOMER_ID)
+GET {{host}}/transfers
+
+### Error: page is not a number (400 INVALID_PAGE)
+GET {{host}}/transfers?customerId={{customerId}}&page=abc
