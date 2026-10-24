@@ -113,6 +113,8 @@ public class TransferServiceTests
     [InlineData("0")]
     [InlineData("-1")]
     [InlineData("abc")]
+    [InlineData("+2")]
+    [InlineData(" 2")]
     public void Invalid_page_is_rejected(string page)
     {
         AssertRejected(ErrorCodes.InvalidPage, () => _transfers.List("cust-1", page));

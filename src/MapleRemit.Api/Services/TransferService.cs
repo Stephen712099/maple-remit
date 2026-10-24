@@ -1,3 +1,4 @@
+using System.Globalization;
 using MapleRemit.Api.Errors;
 using MapleRemit.Api.Storage;
 
@@ -22,7 +23,9 @@ public sealed class TransferService(ITransferStore store, TimeProvider clock)
     {
         EnsureCustomerId(customerId);
         var pageNumber = 1;
-        if (page is not null && (!int.TryParse(page, out pageNumber) || pageNumber < 1))
+        // Digits only: no sign, spaces or culture-specific forms.
+        if (page is not null
+            && (!int.TryParse(page, NumberStyles.None, CultureInfo.InvariantCulture, out pageNumber) || pageNumber < 1))
             throw new ApiException(ErrorCodes.InvalidPage, "page must be a whole number of 1 or greater.");
 
         // long math: no overflow on huge pages.
