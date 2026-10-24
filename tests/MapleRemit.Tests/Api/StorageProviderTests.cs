@@ -14,4 +14,13 @@ public class StorageProviderTests(WebApplicationFactory<Program> factory)
         var ex = Assert.Throws<InvalidOperationException>(() => app.CreateClient());
         Assert.Contains("ConnectionStrings:Postgres", ex.Message);
     }
+
+    [Fact]
+    public void Startup_fails_when_storage_provider_is_unknown()
+    {
+        var app = factory.WithWebHostBuilder(b => b.UseSetting("Storage:Provider", "PostgreSQL"));
+
+        var ex = Assert.Throws<InvalidOperationException>(() => app.CreateClient());
+        Assert.Contains("Storage:Provider", ex.Message);
+    }
 }

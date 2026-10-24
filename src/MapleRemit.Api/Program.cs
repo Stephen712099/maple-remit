@@ -18,8 +18,11 @@ builder.Services.AddOptions<ExchangeRateOptions>()
     .Validate(o => o.ThbPerCad > 0, "ExchangeRate:ThbPerCad must be greater than zero.")
     .ValidateOnStart();
 
-// Storage:Provider is "Postgres" or "InMemory" (default).
-var usePostgres = string.Equals(builder.Configuration["Storage:Provider"], "Postgres", StringComparison.OrdinalIgnoreCase);
+// Storage:Provider is "Postgres" or "InMemory" (default); anything else fails startup.
+var provider = builder.Configuration["Storage:Provider"] ?? "InMemory";
+var usePostgres = string.Equals(provider, "Postgres", StringComparison.OrdinalIgnoreCase);
+if (!usePostgres && !string.Equals(provider, "InMemory", StringComparison.OrdinalIgnoreCase))
+    throw new InvalidOperationException($"Storage:Provider must be \"Postgres\" or \"InMemory\", not \"{provider}\".");
 if (usePostgres)
 {
     var connectionString = builder.Configuration.GetConnectionString("Postgres")
