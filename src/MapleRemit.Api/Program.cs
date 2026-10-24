@@ -3,6 +3,7 @@ using MapleRemit.Api.Endpoints;
 using MapleRemit.Api.Errors;
 using MapleRemit.Api.Services;
 using MapleRemit.Api.Storage;
+using Npgsql;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -17,11 +18,28 @@ builder.Services.AddOptions<ExchangeRateOptions>()
     .Validate(o => o.ThbPerCad > 0, "ExchangeRate:ThbPerCad must be greater than zero.")
     .ValidateOnStart();
 
-AddStore<InMemoryStore>(builder.Services);
+// Storage:Provider is "Postgres" or "InMemory" (default).
+var usePostgres = string.Equals(builder.Configuration["Storage:Provider"], "Postgres", StringComparison.OrdinalIgnoreCase);
+if (usePostgres)
+{
+    var connectionString = builder.Configuration.GetConnectionString("Postgres")
+        ?? throw new InvalidOperationException("ConnectionStrings:Postgres is required when Storage:Provider is Postgres.");
+    // Factory, so DI disposes it.
+    builder.Services.AddSingleton(_ => NpgsqlDataSource.Create(connectionString));
+    AddStore<PostgresStore>(builder.Services);
+}
+else
+{
+    AddStore<InMemoryStore>(builder.Services);
+}
+
 builder.Services.AddSingleton<QuoteService>();
 builder.Services.AddSingleton<TransferService>();
 
 var app = builder.Build();
+
+if (usePostgres)
+    app.Services.GetRequiredService<PostgresStore>().EnsureSchema();
 
 app.UseMiddleware<ErrorHandlingMiddleware>();
 app.UseStatusCodePages(StatusCodeErrors.WriteAsync);
