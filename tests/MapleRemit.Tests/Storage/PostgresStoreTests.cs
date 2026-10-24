@@ -1,4 +1,5 @@
 using Dapper;
+using MapleRemit.Api.Models;
 using MapleRemit.Api.Storage;
 using Npgsql;
 using Testcontainers.PostgreSql;
@@ -34,10 +35,14 @@ public sealed class PostgresFixture : IAsyncLifetime
 
 public class PostgresStoreTests : StoreContractTests, IClassFixture<PostgresFixture>
 {
+    private static readonly DateTimeOffset Now = new(2026, 1, 15, 10, 0, 0, TimeSpan.Zero);
+
+    private readonly PostgresFixture _db;
     private readonly PostgresStore _store;
 
     public PostgresStoreTests(PostgresFixture db)
     {
+        _db = db;
         db.Reset();
         _store = new PostgresStore(db.DataSource);
     }
@@ -47,4 +52,45 @@ public class PostgresStoreTests : StoreContractTests, IClassFixture<PostgresFixt
 
     // A DB round trip makes the race window wide, so fewer rounds are enough.
     protected override int ConcurrencyRounds => 5;
+
+    private Guid AddQuote()
+    {
+        var quote = new Quote(Guid.NewGuid(), 100m, 2.99m, 102.99m, 24.50m, 2450m, Now, Now.AddMinutes(15));
+        _store.AddQuote(quote);
+        return quote.Id;
+    }
+
+    // Raw insert: skips the store's locks, as a bug or another writer would.
+    private void InsertTransfer(Guid quoteId, string customerId, string key)
+    {
+        using var connection = _db.DataSource.OpenConnection();
+        connection.Execute(
+            """
+            INSERT INTO transfers (id, customer_id, quote_id, idempotency_key, amount_cad, fee_cad, total_cad,
+                                   exchange_rate, amount_thb, created_at)
+            VALUES (@id, @customerId, @quoteId, @key, 100, 2.99, 102.99, 24.50, 2450, @Now)
+            """,
+            new { id = Guid.NewGuid(), customerId, quoteId, key, Now });
+    }
+
+    [Fact]
+    public void Schema_rejects_two_transfers_for_one_quote()
+    {
+        var quoteId = AddQuote();
+        InsertTransfer(quoteId, "cust-1", "key-1");
+
+        var ex = Assert.Throws<PostgresException>(() => InsertTransfer(quoteId, "cust-2", "key-2"));
+
+        Assert.Equal(PostgresErrorCodes.UniqueViolation, ex.SqlState);
+    }
+
+    [Fact]
+    public void Schema_rejects_a_reused_idempotency_key_for_one_customer()
+    {
+        InsertTransfer(AddQuote(), "cust-1", "key-1");
+
+        var ex = Assert.Throws<PostgresException>(() => InsertTransfer(AddQuote(), "cust-1", "key-1"));
+
+        Assert.Equal(PostgresErrorCodes.UniqueViolation, ex.SqlState);
+    }
 }

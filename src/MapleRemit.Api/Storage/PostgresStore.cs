@@ -35,14 +35,15 @@ public sealed class PostgresStore(NpgsqlDataSource dataSource) : IQuoteStore, IT
             seq             bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
             id              uuid NOT NULL UNIQUE,
             customer_id     text NOT NULL,
-            quote_id        uuid NOT NULL REFERENCES quotes (id),
+            quote_id        uuid NOT NULL UNIQUE REFERENCES quotes (id),
             idempotency_key text NOT NULL,
             amount_cad      numeric(12, 2) NOT NULL,
             fee_cad         numeric(12, 2) NOT NULL,
             total_cad       numeric(12, 2) NOT NULL,
             exchange_rate   numeric NOT NULL,
             amount_thb      numeric(14, 2) NOT NULL,
-            created_at      timestamptz NOT NULL
+            created_at      timestamptz NOT NULL,
+            UNIQUE (customer_id, idempotency_key)
         );
         """;
 
