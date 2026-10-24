@@ -2,7 +2,7 @@ using MapleRemit.Api.Contracts;
 
 namespace MapleRemit.Api.Errors;
 
-// Exceptions → JSON errors.
+// Exceptions → JSON errors. Only unexpected ones are logged as errors.
 public sealed class ErrorHandlingMiddleware(RequestDelegate next, ILogger<ErrorHandlingMiddleware> logger)
 {
     public async Task InvokeAsync(HttpContext context)
