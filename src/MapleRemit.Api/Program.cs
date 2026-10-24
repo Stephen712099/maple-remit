@@ -3,6 +3,7 @@ using MapleRemit.Api.Endpoints;
 using MapleRemit.Api.Errors;
 using MapleRemit.Api.Services;
 using MapleRemit.Api.Storage;
+using Npgsql;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -17,16 +18,38 @@ builder.Services.AddOptions<ExchangeRateOptions>()
     .Validate(o => o.ThbPerCad > 0, "ExchangeRate:ThbPerCad must be greater than zero.")
     .ValidateOnStart();
 
-AddStore<InMemoryStore>(builder.Services);
+// Storage:Provider is "Postgres" or "InMemory" (default); anything else fails startup.
+var provider = builder.Configuration["Storage:Provider"] ?? "InMemory";
+var usePostgres = string.Equals(provider, "Postgres", StringComparison.OrdinalIgnoreCase);
+if (!usePostgres && !string.Equals(provider, "InMemory", StringComparison.OrdinalIgnoreCase))
+    throw new InvalidOperationException($"Storage:Provider must be \"Postgres\" or \"InMemory\", not \"{provider}\".");
+if (usePostgres)
+{
+    var connectionString = builder.Configuration.GetConnectionString("Postgres")
+        ?? throw new InvalidOperationException("ConnectionStrings:Postgres is required when Storage:Provider is Postgres.");
+    // Factory, so DI disposes it.
+    builder.Services.AddSingleton(_ => NpgsqlDataSource.Create(connectionString));
+    AddStore<PostgresStore>(builder.Services);
+}
+else
+{
+    AddStore<InMemoryStore>(builder.Services);
+}
+
 builder.Services.AddSingleton<QuoteService>();
 builder.Services.AddSingleton<TransferService>();
 
 var app = builder.Build();
 
+if (usePostgres)
+    app.Services.GetRequiredService<PostgresStore>().EnsureSchema();
+
 app.UseMiddleware<ErrorHandlingMiddleware>();
 app.UseStatusCodePages(StatusCodeErrors.WriteAsync);
 
-app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
+app.MapGet("/health", (IStoreHealth store) => store.IsReady()
+    ? Results.Ok(new { status = "ok" })
+    : Results.Json(new { status = "unavailable" }, statusCode: StatusCodes.Status503ServiceUnavailable));
 app.MapQuoteEndpoints();
 app.MapTransferEndpoints();
 
@@ -34,11 +57,12 @@ app.Run();
 
 // One instance for all interfaces: shared data and locks.
 static void AddStore<TStore>(IServiceCollection services)
-    where TStore : class, IQuoteStore, ITransferStore
+    where TStore : class, IQuoteStore, ITransferStore, IStoreHealth
 {
     services.AddSingleton<TStore>();
     services.AddSingleton<IQuoteStore>(sp => sp.GetRequiredService<TStore>());
     services.AddSingleton<ITransferStore>(sp => sp.GetRequiredService<TStore>());
+    services.AddSingleton<IStoreHealth>(sp => sp.GetRequiredService<TStore>());
 }
 
 // Lets WebApplicationFactory reference the entry point.

@@ -185,14 +185,18 @@ public abstract class StoreContractTests
     [Fact]
     public void Concurrent_requests_cannot_exceed_the_daily_limit()
     {
-        Transfers.CreateTransfer("cust-1", AddQuote(2000m, Now).Id, NewKey(), Now);
-        var quotes = Enumerable.Range(0, 10).Select(_ => AddQuote(900m, Now)).ToArray();
+        for (var round = 0; round < ConcurrencyRounds; round++)
+        {
+            var customerId = $"cust-{round}";
+            Transfers.CreateTransfer(customerId, AddQuote(2000m, Now).Id, NewKey(), Now);
+            var quotes = Enumerable.Range(0, 10).Select(_ => AddQuote(900m, Now)).ToArray();
 
-        var outcomes = RunConcurrently(10, i => Transfers.CreateTransfer("cust-1", quotes[i].Id, NewKey(), Now));
+            var outcomes = RunConcurrently(10, i => Transfers.CreateTransfer(customerId, quotes[i].Id, NewKey(), Now));
 
-        Assert.Single(outcomes, o => o.Result is not null);
-        Assert.All(outcomes.Where(o => o.Error is not null),
-            o => Assert.Equal(ErrorCodes.DailyLimitExceeded, Assert.IsType<ApiException>(o.Error).Code));
+            Assert.Single(outcomes, o => o.Result is not null);
+            Assert.All(outcomes.Where(o => o.Error is not null),
+                o => Assert.Equal(ErrorCodes.DailyLimitExceeded, Assert.IsType<ApiException>(o.Error).Code));
+        }
     }
 
     [Fact]
@@ -261,7 +265,8 @@ public abstract class StoreContractTests
         Assert.Equal(0, page.TotalCount);
     }
 
-    private const int ConcurrencyRounds = 20;
+    // In-memory needs many rounds to hit its microsecond race window.
+    protected virtual int ConcurrencyRounds => 20;
 
     private sealed record Outcome(TransferResult? Result, Exception? Error);
 
