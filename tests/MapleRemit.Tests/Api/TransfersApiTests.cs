@@ -15,6 +15,7 @@ public class TransfersApiTests(WebApplicationFactory<Program> factory)
 
     private const string Key1 = "11111111-1111-1111-1111-111111111111";
     private const string Key2 = "22222222-2222-2222-2222-222222222222";
+    private const string Key3 = "33333333-3333-3333-3333-333333333333";
 
     private readonly FakeTimeProvider _clock = new(Now);
 
@@ -161,5 +162,36 @@ public class TransfersApiTests(WebApplicationFactory<Program> factory)
         var response = await PostTransfer(client, await CreateQuote(client, 200m), Key1);
 
         await AssertError(response, HttpStatusCode.UnprocessableEntity, "IDEMPOTENCY_KEY_REUSED");
+    }
+
+    [Fact]
+    public async Task Get_transfers_returns_the_customer_transfers_newest_first()
+    {
+        var client = CreateClient();
+        await PostTransfer(client, await CreateQuote(client, 100m), Key1);
+        _clock.Advance(TimeSpan.FromMinutes(1));
+        await PostTransfer(client, await CreateQuote(client, 200m), Key2);
+        await PostTransfer(client, await CreateQuote(client, 300m), Key3, customerId: "cust-2");
+
+        var response = await client.GetAsync("/transfers?customerId=cust-1");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        var amounts = body.GetProperty("items").EnumerateArray().Select(t => t.GetProperty("amountCad").GetDecimal());
+        Assert.Equal([200m, 100m], amounts);
+        Assert.Equal(1, body.GetProperty("page").GetInt32());
+        Assert.Equal(20, body.GetProperty("pageSize").GetInt32());
+        Assert.Equal(2, body.GetProperty("totalCount").GetInt32());
+    }
+
+    [Theory]
+    [InlineData("/transfers", "INVALID_CUSTOMER_ID")]
+    [InlineData("/transfers?customerId=cust-1&page=0", "INVALID_PAGE")]
+    [InlineData("/transfers?customerId=cust-1&page=abc", "INVALID_PAGE")]
+    public async Task Get_transfers_with_invalid_query_returns_400(string url, string code)
+    {
+        var response = await CreateClient().GetAsync(url);
+
+        await AssertError(response, HttpStatusCode.BadRequest, code);
     }
 }

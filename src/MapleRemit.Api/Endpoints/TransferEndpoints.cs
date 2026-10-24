@@ -22,6 +22,14 @@ public static class TransferEndpoints
                 : TypedResults.Created((string?)null, response);
         });
 
+        // String, so non-numeric pages get INVALID_PAGE.
+        app.MapGet("/transfers", (string? customerId, string? page, TransferService service) =>
+        {
+            var (pageNumber, result) = service.List(customerId, page);
+            var items = result.Items.Select(TransferResponse.From).ToList();
+            return TypedResults.Ok(new TransferListResponse(items, pageNumber, TransferService.PageSize, result.TotalCount));
+        });
+
         return app;
     }
 }
