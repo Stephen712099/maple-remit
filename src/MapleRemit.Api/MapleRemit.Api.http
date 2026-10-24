@@ -1,5 +1,6 @@
 # Manual requests for the VS Code REST Client or the Rider/VS HTTP client.
 # Run top to bottom. State is in memory: restart the app to rerun from a clean state.
+# With docker compose (Postgres) use port 8080; data persists, so run `docker compose down -v` before a rerun.
 @host = http://localhost:5001
 @customerId = cust-1
 @key = 11111111-1111-1111-1111-111111111111
