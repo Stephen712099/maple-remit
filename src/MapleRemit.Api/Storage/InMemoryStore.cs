@@ -63,4 +63,19 @@ public sealed class InMemoryStore : IQuoteStore, ITransferStore
             return new TransferResult(transfer, Replayed: false);
         }
     }
+
+    public TransferPage ListTransfers(string customerId, int skip, int take)
+    {
+        lock (_lock)
+        {
+            var transfers = _transfersByCustomer.GetValueOrDefault(customerId) ?? [];
+            // Reverse + stable sort: newer first on equal timestamps.
+            var items = transfers.AsEnumerable().Reverse()
+                .OrderByDescending(t => t.CreatedAt)
+                .Skip(skip)
+                .Take(take)
+                .ToList();
+            return new TransferPage(items, transfers.Count);
+        }
+    }
 }

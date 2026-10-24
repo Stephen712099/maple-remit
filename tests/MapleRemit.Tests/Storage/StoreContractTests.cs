@@ -211,6 +211,56 @@ public abstract class StoreContractTests
         }
     }
 
+    [Fact]
+    public void List_returns_newest_first_for_the_customer_only()
+    {
+        var first = Transfers.CreateTransfer("cust-1", AddQuote(10m, Now).Id, NewKey(), Now).Transfer;
+        Transfers.CreateTransfer("cust-2", AddQuote(10m, Now).Id, NewKey(), Now);
+        var second = Transfers.CreateTransfer("cust-1", AddQuote(10m, Now).Id, NewKey(), Now.AddMinutes(1)).Transfer;
+
+        var page = Transfers.ListTransfers("cust-1", skip: 0, take: 20);
+
+        Assert.Equal([second.Id, first.Id], page.Items.Select(t => t.Id));
+        Assert.Equal(2, page.TotalCount);
+    }
+
+    [Fact]
+    public void List_breaks_ties_by_creation_order()
+    {
+        var first = Transfers.CreateTransfer("cust-1", AddQuote(10m, Now).Id, NewKey(), Now).Transfer;
+        var second = Transfers.CreateTransfer("cust-1", AddQuote(10m, Now).Id, NewKey(), Now).Transfer;
+
+        var page = Transfers.ListTransfers("cust-1", skip: 0, take: 20);
+
+        Assert.Equal([second.Id, first.Id], page.Items.Select(t => t.Id));
+    }
+
+    [Fact]
+    public void List_pages_through_transfers()
+    {
+        var created = Enumerable.Range(0, 25)
+            .Select(_ => Transfers.CreateTransfer("cust-1", AddQuote(10m, Now).Id, NewKey(), Now).Transfer)
+            .ToList();
+
+        var page1 = Transfers.ListTransfers("cust-1", skip: 0, take: 20);
+        var page2 = Transfers.ListTransfers("cust-1", skip: 20, take: 20);
+
+        Assert.Equal(20, page1.Items.Count);
+        Assert.Equal(created[24].Id, page1.Items[0].Id);
+        Assert.Equal(5, page2.Items.Count);
+        Assert.Equal(created[0].Id, page2.Items[^1].Id);
+        Assert.Equal(25, page2.TotalCount);
+    }
+
+    [Fact]
+    public void List_for_unknown_customer_is_empty()
+    {
+        var page = Transfers.ListTransfers("nobody", skip: 0, take: 20);
+
+        Assert.Empty(page.Items);
+        Assert.Equal(0, page.TotalCount);
+    }
+
     private const int ConcurrencyRounds = 20;
 
     private sealed record Outcome(TransferResult? Result, Exception? Error);
