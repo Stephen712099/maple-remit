@@ -16,10 +16,18 @@ public static class StatusCodeErrors
         _ => new(ErrorCodes.InvalidRequest, "The request is invalid."),
     };
 
+    // Info, not error: client mistakes should not page anyone. Count them by ErrorCode.
+    public static void LogClientError(ILogger logger, int status, string code) =>
+        logger.LogInformation("Client error {StatusCode} {ErrorCode}", status, code);
+
     // JSON body for framework errors (404, 405, 415).
     public static Task WriteAsync(StatusCodeContext context)
     {
         var response = context.HttpContext.Response;
-        return response.WriteAsJsonAsync(For(response.StatusCode));
+        var body = For(response.StatusCode);
+        var logger = context.HttpContext.RequestServices.GetRequiredService<ILoggerFactory>()
+            .CreateLogger(typeof(StatusCodeErrors));
+        LogClientError(logger, response.StatusCode, body.Code);
+        return response.WriteAsJsonAsync(body);
     }
 }

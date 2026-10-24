@@ -34,10 +34,9 @@ public sealed class ErrorHandlingMiddleware(RequestDelegate next, ILogger<ErrorH
         }
     }
 
-    // Info, not error: client mistakes should not page anyone. Count them by ErrorCode.
     private Task WriteClientError(HttpContext context, int status, ErrorResponse body)
     {
-        logger.LogInformation("Client error {StatusCode} {ErrorCode}", status, body.Code);
+        StatusCodeErrors.LogClientError(logger, status, body.Code);
         return Write(context, status, body);
     }
 
