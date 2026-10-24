@@ -1,6 +1,9 @@
 using Dapper;
 using MapleRemit.Api.Models;
+using MapleRemit.Api.Services;
 using MapleRemit.Api.Storage;
+using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Time.Testing;
 using Npgsql;
 using Testcontainers.PostgreSql;
 
@@ -73,6 +76,22 @@ public class PostgresStoreTests : StoreContractTests, IClassFixture<PostgresFixt
             VALUES (@id, @customerId, @quoteId, @key, 100, 2.99, 102.99, 24.50, 2450, @Now)
             """,
             new { id = Guid.NewGuid(), customerId, quoteId, key, Now });
+    }
+
+    [Fact]
+    public void Replay_returns_an_identical_transfer_when_the_clock_has_sub_microsecond_ticks()
+    {
+        var clock = new FakeTimeProvider(Now.AddTicks(1234567));
+        var quotes = new QuoteService(_store, clock, Options.Create(new ExchangeRateOptions { ThbPerCad = 24.50m }));
+        var transfers = new TransferService(_store, clock);
+        var quoteId = quotes.Create(100m).Id.ToString();
+        var key = Guid.NewGuid().ToString();
+
+        var first = transfers.Create("cust-1", quoteId, key);
+        var replay = transfers.Create("cust-1", quoteId, key);
+
+        Assert.True(replay.Replayed);
+        Assert.Equal(first.Transfer, replay.Transfer);
     }
 
     [Fact]
