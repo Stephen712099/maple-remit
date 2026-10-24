@@ -24,6 +24,7 @@ builder.Services.AddSingleton<QuoteService>();
 var app = builder.Build();
 
 app.UseMiddleware<ErrorHandlingMiddleware>();
+app.UseStatusCodePages(StatusCodeErrors.WriteAsync);
 
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 app.MapQuoteEndpoints();
