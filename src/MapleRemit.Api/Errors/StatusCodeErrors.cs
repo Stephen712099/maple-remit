@@ -11,6 +11,7 @@ public static class StatusCodeErrors
         StatusCodes.Status400BadRequest => new(ErrorCodes.InvalidRequest, "The request is malformed."),
         StatusCodes.Status404NotFound => new(ErrorCodes.NotFound, "The requested resource was not found."),
         StatusCodes.Status405MethodNotAllowed => new(ErrorCodes.MethodNotAllowed, "The HTTP method is not allowed for this resource."),
+        StatusCodes.Status413PayloadTooLarge => new(ErrorCodes.PayloadTooLarge, "The request body is too large."),
         StatusCodes.Status415UnsupportedMediaType => new(ErrorCodes.UnsupportedMediaType, "Content-Type must be application/json."),
         >= StatusCodes.Status500InternalServerError => new(ErrorCodes.InternalError, "An unexpected error occurred."),
         _ => new(ErrorCodes.InvalidRequest, "The request is invalid."),

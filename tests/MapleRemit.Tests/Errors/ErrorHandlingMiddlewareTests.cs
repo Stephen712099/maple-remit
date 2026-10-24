@@ -60,6 +60,17 @@ public class ErrorHandlingMiddlewareTests
         AssertClientErrorLogged(400, "INVALID_REQUEST");
     }
 
+    // Kestrel throws this when the body exceeds its limit (30 MB by default).
+    [Fact]
+    public async Task Oversized_body_returns_413_payload_too_large()
+    {
+        var (status, body) = await Invoke(new BadHttpRequestException("Too large.", StatusCodes.Status413PayloadTooLarge));
+
+        Assert.Equal(413, status);
+        Assert.Equal("PAYLOAD_TOO_LARGE", body.GetProperty("code").GetString());
+        AssertClientErrorLogged(413, "PAYLOAD_TOO_LARGE");
+    }
+
     // One info entry with status and code, no stack trace.
     private void AssertClientErrorLogged(int status, string code)
     {
