@@ -43,7 +43,7 @@ See `src/MapleRemit.Api/MapleRemit.Api.http` for example requests and error case
 | `GET /transfers?customerId=&page=` | 200 | Newest first, 20 per page, starting at page 1. |
 | `GET /health` | 200, 503 | Returns 503 if the database is unreachable. |
 
-Errors use a consistent JSON format: `{ "code": "...", "message": "..." }`. The 17 error codes are defined in `src/MapleRemit.Api/Errors/ErrorCodes.cs`.
+Errors use a consistent JSON format: `{ "code": "...", "message": "...", "traceId": "..." }`. The 17 error codes are defined in `src/MapleRemit.Api/Errors/ErrorCodes.cs`. The `traceId` is the same as the `TraceId` in the logs for that request.
 
 ## Design decisions
 
@@ -51,7 +51,7 @@ Errors use a consistent JSON format: `{ "code": "...", "message": "..." }`. The 
 - **Concurrency.** The in-memory store locks the check-and-write operation. PostgreSQL uses a transaction, a per-customer advisory lock for idempotency and the daily limit, and `SELECT ... FOR UPDATE` to prevent a quote from being used twice.
 - **Database constraints.** Unique constraints on `quote_id` and `(customer_id, idempotency_key)` prevent duplicate records. The daily limit still depends on the advisory lock; bypassing a lock could allow the limit to be exceeded.
 - **Tests.** The same store contract tests run against both stores, including concurrent quote reuse, daily-limit and idempotency requests. I removed the locks to verify that the concurrency tests catch the failures.
-- **Errors and logging.** A single middleware returns consistent error responses without exposing exception details. Client errors are logged at Information, unhandled exceptions at Error, and failed database health checks at Warning.
+- **Errors and logging.** A single middleware returns consistent error responses without exposing exception details. Client errors are logged at Information, unhandled exceptions at Error, and failed database health checks at Warning. Outside Development, logs are JSON, and every line has the `TraceId` and `RequestPath`. Each request logs its status and duration. Each transfer logs its customer, amount and whether it was a replay.
 - **Time and money.** `TimeProvider` makes time testable with `FakeTimeProvider`. Times are aligned to PostgreSQL's microsecond precision. Money uses `decimal`, with half-up rounding to cents.
 - **Schema.** Tables are created at startup with `CREATE TABLE IF NOT EXISTS`. This keeps setup simple but does not handle changes to existing schemas.
 - **Container and CI.** The multi-stage Docker build uses the .NET 8 Alpine runtime and a non-root user. CI scans for secrets, builds and tests the app, checks the container with a health request, and runs Trivy. Images are pushed to GHCR on `main`, tagged with the commit SHA.
