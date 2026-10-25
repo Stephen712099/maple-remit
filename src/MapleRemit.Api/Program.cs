@@ -38,6 +38,8 @@ else
 
 builder.Services.AddSingleton<QuoteService>();
 builder.Services.AddSingleton<TransferService>();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
@@ -46,6 +48,11 @@ if (usePostgres)
 
 app.UseMiddleware<ErrorHandlingMiddleware>();
 app.UseStatusCodePages(StatusCodeErrors.WriteAsync);
+// On in every environment so the live demo can be tried in a browser.
+app.UseSwagger();
+app.UseSwaggerUI();
+
+app.MapGet("/", () => Results.Redirect("/swagger")).ExcludeFromDescription();
 
 app.MapGet("/health", (IStoreHealth store) => store.IsReady()
     ? Results.Ok(new { status = "ok" })
