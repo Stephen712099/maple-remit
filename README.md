@@ -51,14 +51,13 @@ Errors use a consistent JSON format: `{ "code": "...", "message": "...", "traceI
 - **Concurrency.** The in-memory store locks the check-and-write operation. PostgreSQL uses a transaction, a per-customer advisory lock for idempotency and the daily limit, and `SELECT ... FOR UPDATE` to prevent a quote from being used twice.
 - **Database constraints.** Unique constraints on `quote_id` and `(customer_id, idempotency_key)` prevent duplicate records. The daily limit still depends on the advisory lock; bypassing a lock could allow the limit to be exceeded.
 - **Tests.** The same store contract tests run against both stores, including concurrent quote reuse, daily-limit and idempotency requests. I removed the locks to verify that the concurrency tests catch the failures.
-- **Errors and logging.** A single middleware returns consistent error responses without exposing exception details. Client errors are logged at Information, unhandled exceptions at Error, and failed database health checks at Warning. Outside Development, logs are JSON, and every line has the `TraceId` and `RequestPath`. Each request logs its status and duration. Each transfer logs its customer, amount and whether it was a replay.
+- **Errors and logging.** A single middleware returns consistent error responses without exposing exception details. Client errors are logged at Information, unhandled exceptions at Error, and failed database health checks at Warning. Outside Development, logs are JSON, and every log line from a request has the `TraceId` and `RequestPath`. Each request logs its status and duration. Each transfer logs its customer, amount and whether it was a replay.
 - **Time and money.** `TimeProvider` makes time testable with `FakeTimeProvider`. Times are aligned to PostgreSQL's microsecond precision. Money uses `decimal`, with half-up rounding to cents.
 - **Schema.** Tables are created at startup with `CREATE TABLE IF NOT EXISTS`. This keeps setup simple but does not handle changes to existing schemas.
 - **Container and CI.** The multi-stage Docker build uses the .NET 8 Alpine runtime and a non-root user. CI scans for secrets, builds and tests the app, checks the container with a health request, and runs Trivy. Images are pushed to GHCR on `main`, tagged with the commit SHA.
 
 ## Business rule assumptions
 
-- The fee is 1.5% of `amountCad`. The daily limit counts `amountCad` only, without fees.
 - Amounts with more than two decimal places are rejected.
 - The limit covers transfers created in the previous 24 hours. A transfer exactly 24 hours old no longer counts. Rejected requests do not count.
 - Quotes are not tied to a customer. The first successful transfer uses the quote.
