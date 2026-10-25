@@ -39,7 +39,11 @@ else
 builder.Services.AddSingleton<QuoteService>();
 builder.Services.AddSingleton<TransferService>();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(o =>
+{
+    o.SchemaFilter<SwaggerExamples>();
+    o.OperationFilter<SwaggerExamples>();
+});
 
 var app = builder.Build();
 
@@ -50,7 +54,7 @@ app.UseMiddleware<ErrorHandlingMiddleware>();
 app.UseStatusCodePages(StatusCodeErrors.WriteAsync);
 // On in every environment so the live demo can be tried in a browser.
 app.UseSwagger();
-app.UseSwaggerUI();
+app.UseSwaggerUI(o => o.UseRequestInterceptor(SwaggerExamples.RequestInterceptor));
 
 app.MapGet("/", () => Results.Redirect("/swagger")).ExcludeFromDescription();
 
