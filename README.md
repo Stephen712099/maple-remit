@@ -2,6 +2,10 @@
 
 A quote and transfer API for the Platform Support Engineer assessment. Built with .NET 8 Minimal APIs, with in-memory storage by default and PostgreSQL support.
 
+## Live demo
+
+https://maple-remit.onrender.com runs `main` on Render's free plan, with PostgreSQL on Neon. It opens Swagger UI, where you can try each endpoint. The service sleeps when idle, so the first request can take about a minute.
+
 ## Run locally
 
 Requirements: .NET 8 SDK (`global.json` pins version 8.0.417) and Docker. Docker must be running because the PostgreSQL tests use Testcontainers.
@@ -72,6 +76,7 @@ The current implementation uses a rolling 24-hour window, counts all created tra
 
 ## With more time
 
+- Turn off Swagger UI in production. It is on here only for the demo.
 - Add database migrations and cleanup for expired quotes, idempotency keys and in-memory data.
 - Split `/health` into liveness and readiness, so a database outage does not restart healthy containers.
 - Add an index on `transfers (customer_id, created_at)`.
