@@ -45,6 +45,6 @@ public sealed class ErrorHandlingMiddleware(RequestDelegate next, ILogger<ErrorH
         // Drop headers set before the failure.
         context.Response.Clear();
         context.Response.StatusCode = status;
-        return context.Response.WriteAsJsonAsync(body);
+        return context.Response.WriteAsJsonAsync(body.WithTraceId(context));
     }
 }

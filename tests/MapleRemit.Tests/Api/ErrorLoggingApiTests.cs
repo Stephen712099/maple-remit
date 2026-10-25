@@ -46,6 +46,7 @@ public class ErrorLoggingApiTests(WebApplicationFactory<Program> factory)
         Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
         var body = await response.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal("INTERNAL_ERROR", body.GetProperty("code").GetString());
+        Assert.Matches("^[0-9a-f]{32}$", body.GetProperty("traceId").GetString());
         Assert.DoesNotContain("hunter2", body.GetRawText());
 
         var error = Assert.Single(_logs.Errors);
