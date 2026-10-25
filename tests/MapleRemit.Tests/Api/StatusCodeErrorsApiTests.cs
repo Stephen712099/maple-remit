@@ -17,6 +17,7 @@ public class StatusCodeErrorsApiTests(WebApplicationFactory<Program> factory)
         Assert.Equal(status, response.StatusCode);
         var body = await response.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal(code, body.GetProperty("code").GetString());
+        Assert.Matches("^[0-9a-f]{32}$", body.GetProperty("traceId").GetString());
     }
 
     [Fact]

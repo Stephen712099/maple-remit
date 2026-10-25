@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text.Json;
 using MapleRemit.Api.Errors;
 using Microsoft.AspNetCore.Http;
@@ -69,6 +70,29 @@ public class ErrorHandlingMiddlewareTests
         Assert.Equal(413, status);
         Assert.Equal("PAYLOAD_TOO_LARGE", body.GetProperty("code").GetString());
         AssertClientErrorLogged(413, "PAYLOAD_TOO_LARGE");
+    }
+
+    [Fact]
+    public async Task Error_response_has_the_trace_id_of_the_current_activity()
+    {
+        using var activity = new Activity("request").SetIdFormat(ActivityIdFormat.W3C).Start();
+
+        var (_, body) = await Invoke(new ApiException(ErrorCodes.InvalidAmount, "Bad amount."));
+
+        Assert.Equal(activity.TraceId.ToString(), body.GetProperty("traceId").GetString());
+    }
+
+    [Fact]
+    public async Task Error_response_falls_back_to_the_request_id_without_an_activity()
+    {
+        var context = new DefaultHttpContext { TraceIdentifier = "request-1" };
+        context.Response.Body = new MemoryStream();
+
+        await CreateMiddleware(new InvalidOperationException("boom")).InvokeAsync(context);
+
+        context.Response.Body.Position = 0;
+        var body = await JsonSerializer.DeserializeAsync<JsonElement>(context.Response.Body);
+        Assert.Equal("request-1", body.GetProperty("traceId").GetString());
     }
 
     // One info entry with status and code, no stack trace.

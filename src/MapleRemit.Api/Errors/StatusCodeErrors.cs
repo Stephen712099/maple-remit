@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using MapleRemit.Api.Contracts;
 using Microsoft.AspNetCore.Diagnostics;
 
@@ -17,6 +18,10 @@ public static class StatusCodeErrors
         _ => new(ErrorCodes.InvalidRequest, "The request is invalid."),
     };
 
+    // W3C trace ID of the current request; falls back to the ASP.NET Core request ID.
+    public static ErrorResponse WithTraceId(this ErrorResponse body, HttpContext context) =>
+        body with { TraceId = Activity.Current?.TraceId.ToString() ?? context.TraceIdentifier };
+
     // Info, not error: client mistakes should not page anyone. Count them by ErrorCode.
     public static void LogClientError(ILogger logger, int status, string code) =>
         logger.LogInformation("Client error {StatusCode} {ErrorCode}", status, code);
@@ -29,6 +34,6 @@ public static class StatusCodeErrors
         var logger = context.HttpContext.RequestServices.GetRequiredService<ILoggerFactory>()
             .CreateLogger(typeof(StatusCodeErrors));
         LogClientError(logger, response.StatusCode, body.Code);
-        return response.WriteAsJsonAsync(body);
+        return response.WriteAsJsonAsync(body.WithTraceId(context.HttpContext));
     }
 }
