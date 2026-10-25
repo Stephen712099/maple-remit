@@ -19,6 +19,23 @@ public class SwaggerApiTests(WebApplicationFactory<Program> factory)
     }
 
     [Fact]
+    public async Task Swagger_document_has_request_examples()
+    {
+        var body = await factory.CreateClient().GetStringAsync("/swagger/v1/swagger.json");
+
+        Assert.Contains("\"amountCad\": 231", body);
+        Assert.Contains("\"customerId\": \"cust-1\"", body);
+    }
+
+    [Fact]
+    public async Task Swagger_ui_fills_a_blank_idempotency_key()
+    {
+        var script = await factory.CreateClient().GetStringAsync("/swagger/index.js");
+
+        Assert.Contains("crypto.randomUUID()", script);
+    }
+
+    [Fact]
     public async Task Root_redirects_to_swagger()
     {
         var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
