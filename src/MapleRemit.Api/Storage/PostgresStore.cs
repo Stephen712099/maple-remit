@@ -124,8 +124,15 @@ public sealed class PostgresStore(NpgsqlDataSource dataSource, ILogger<PostgresS
             """,
             new
             {
-                transfer.Id, transfer.CustomerId, transfer.QuoteId, transfer.AmountCad, transfer.FeeCad,
-                transfer.TotalCad, transfer.ExchangeRate, transfer.AmountThb, transfer.CreatedAt,
+                transfer.Id,
+                transfer.CustomerId,
+                transfer.QuoteId,
+                transfer.AmountCad,
+                transfer.FeeCad,
+                transfer.TotalCad,
+                transfer.ExchangeRate,
+                transfer.AmountThb,
+                transfer.CreatedAt,
                 IdempotencyKey = idempotencyKey,
             },
             transaction);
