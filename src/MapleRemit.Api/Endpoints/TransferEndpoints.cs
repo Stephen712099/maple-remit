@@ -12,9 +12,12 @@ public static class TransferEndpoints
         app.MapPost("/transfers", Results<Created<TransferResponse>, Ok<TransferResponse>> (
             CreateTransferRequest request,
             [FromHeader(Name = "Idempotency-Key")] string? idempotencyKey,
-            TransferService service) =>
+            TransferService service,
+            ILogger<TransferService> logger) =>
         {
             var result = service.Create(request.CustomerId, request.QuoteId, idempotencyKey);
+            logger.LogInformation("Transfer {TransferId} for customer {CustomerId}, {AmountCad} CAD, replayed {Replayed}",
+                result.Transfer.Id, result.Transfer.CustomerId, result.Transfer.AmountCad, result.Replayed);
             var response = TransferResponse.From(result.Transfer);
 
             return result.Replayed

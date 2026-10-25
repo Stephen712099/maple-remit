@@ -7,6 +7,15 @@ using Npgsql;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// JSON logs outside Development, with TraceId and RequestPath from the request scope on every line.
+if (!builder.Environment.IsDevelopment())
+    builder.Logging.AddJsonConsole(o =>
+    {
+        o.IncludeScopes = true;
+        o.UseUtcTimestamp = true;
+        o.TimestampFormat = "yyyy-MM-ddTHH:mm:ss.fffZ";
+    });
+
 builder.Services.AddSingleton(TimeProvider.System);
 // Malformed JSON → middleware error format, in every environment.
 builder.Services.Configure<RouteHandlerOptions>(o => o.ThrowOnBadRequest = true);
